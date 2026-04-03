@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Traveler Registration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Importation de la librairie jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Personnalisation pour mobile */
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        /* Empêche le zoom automatique sur iOS lors de la saisie */
+        input[type="text"], input[type="date"], input[type="tel"] {
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen pb-24 md:p-8 font-sans text-gray-800">
+
+    <div class="w-full max-w-4xl mx-auto bg-white md:rounded-xl shadow-lg overflow-hidden">
+        <!-- En-tête -->
+        <div class="bg-gradient-to-br from-blue-600 to-cyan-700 text-white p-6 md:p-8 text-center relative overflow-hidden">
+            <!-- Éléments décoratifs d'arrière-plan -->
+            <div class="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
+            <div class="absolute bottom-0 left-0 -mb-8 -ml-8 w-32 h-32 bg-cyan-300 opacity-20 rounded-full blur-xl"></div>
+
+            <div class="relative z-10">
+                <h1 class="text-2xl md:text-3xl font-extrabold mb-1 tracking-tight drop-shadow-sm">
+                    <i class="fa-solid fa-umbrella-beach mr-2 text-yellow-300"></i>Your Gran Alacant Vacation
+                </h1>
+                <p class="text-cyan-100 text-sm md:text-base font-medium mb-6">Traveler registration (for all guests)</p>
+                
+                <div class="bg-white/10 backdrop-blur-md px-4 py-3.5 rounded-xl border border-white/20 text-blue-50 text-xs md:text-sm text-left leading-relaxed shadow-sm">
+                    <p>
+                        <i class="fa-solid fa-circle-info mr-1.5 text-cyan-200"></i> 
+                        <strong>Legal Note:</strong> We apologize for the inconvenience. Collecting this data is a strict obligation by the Spanish government (Real Decreto 933/2021).
+                    </p>
+                    <p class="mt-2 text-right font-medium italic text-cyan-100">- Sincerely, David.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulaire -->
+        <form id="traveler-form" class="p-4 md:p-8">
+            <div id="travelers-container" class="space-y-6 md:space-y-8">
+                <!-- Les blocs voyageurs seront injectés ici par JavaScript -->
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="mt-8 flex flex-col justify-between items-center border-t pt-6 border-gray-200 gap-4">
+                <div class="text-sm text-gray-500 font-medium w-full text-center mb-2" id="counter-display">
+                    1/6 travelers
+                </div>
+                <button type="button" id="btn-add" class="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 rounded-xl font-medium transition duration-200 flex items-center justify-center shadow-sm">
+                    <i class="fa-solid fa-user-plus mr-2 text-blue-600"></i> Add another traveler
+                </button>
+            </div>
+
+            <div class="mt-8">
+                <button type="submit" class="w-full px-4 py-4 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded-xl font-bold text-lg shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-whatsapp text-xl"></i> Share PDF via WhatsApp
+                </button>
+                <p class="text-xs text-center text-gray-500 mt-4 px-2">
+                    Generates the PDF and opens your phone's sharing menu to send it via WhatsApp or download it.
+                </p>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const container = document.getElementById('travelers-container');
+        const btnAdd = document.getElementById('btn-add');
+        const counterDisplay = document.getElementById('counter-display');
+        const form = document.getElementById('traveler-form');
+        
+        let travelerCount = 0;
+        const MAX_TRAVELERS = 6;
+
+        // Fonction pour générer le HTML d'un voyageur avec ergonomie mobile (champs plus hauts : py-3)
+        function createTravelerBlock(index) {
+            const isFirst = index === 1;
+            const requiredAttr = isFirst ? 'required' : '';
+            const requiredAsterisk = isFirst ? '<span class="text-red-500">*</span>' : '';
+
+            const block = document.createElement('div');
+            block.className = 'traveler-block bg-white border-2 border-gray-100 p-4 rounded-2xl shadow-sm relative transition-all';
+            block.dataset.index = index;
+            
+            let removeButtonHTML = '';
+            if (!isFirst) {
+                removeButtonHTML = `
+                    <button type="button" onclick="removeTraveler(${index})" class="absolute top-3 right-3 text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors" title="Remove">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                `;
+            }
+
+            block.innerHTML = `
+                <h3 class="text-lg font-bold text-blue-800 mb-5 pb-2 border-b border-gray-100 flex items-center">
+                    <span class="bg-blue-100 text-blue-800 w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm">${index}</span>
+                    Traveler ${removeButtonHTML}
+                </h3>
+                
+                <div class="space-y-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">First Name ${requiredAsterisk}</label>
+                        <input type="text" name="prenom_${index}" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 transition-colors" placeholder="Ex: John" ${requiredAttr}>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Last Name ${requiredAsterisk}</label>
+                        <input type="text" name="nom_${index}" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 transition-colors" placeholder="Ex: Doe" ${requiredAttr}>
+                    </div>
+                </div>
+
+                <div class="space-y-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Date of Birth ${requiredAsterisk}</label>
+                        <input type="date" name="dob_${index}" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 transition-colors" ${requiredAttr}>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nationality ${requiredAsterisk}</label>
+                        <input type="text" name="nationalite_${index}" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 transition-colors" placeholder="Ex: British" ${requiredAttr}>
+                    </div>
+                </div>
+
+                <div class="space-y-4 mb-4">
+                    <div class="flex gap-3">
+                        <div class="w-1/3">
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">ID Type ${requiredAsterisk}</label>
+                            <select name="idType_${index}" class="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 transition-colors" ${requiredAttr}>
+                                <option value="ID card">ID card</option>
+                                <option value="Passport">Passport</option>
+                                <option value="NIF">NIF</option>
+                                <option value="NIE">NIE</option>
+                            </select>
+                        </div>
+                        <div class="w-2/3">
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Document No. ${requiredAsterisk}</label>
+                        <input type="text" name="id_${index}" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 transition-colors" placeholder="Document No." ${requiredAttr}>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Phone Number ${requiredAsterisk}</label>
+                    <input type="tel" name="tel_${index}" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 transition-colors" placeholder="+44 7911 123456" ${requiredAttr}>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Relationship <span class="text-xs text-gray-400 font-normal">(Only for minors)</span></label>
+                    <input type="text" name="lien_${index}" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500 transition-colors" placeholder="Ex: child, father, mother, aunt, grandfather...">
+                </div>
+            </div>
+
+            <div class="mt-6 pt-5 border-t border-gray-100 bg-gray-50 -mx-4 -mb-4 p-4 rounded-b-2xl">
+                    <h4 class="text-xs font-bold text-gray-500 mb-4 uppercase tracking-wider flex items-center"><i class="fa-solid fa-location-dot mr-2"></i> Home Address</h4>
+                    
+                    <div class="space-y-4">
+                        <div class="flex gap-3">
+                            <div class="w-2/3">
+                                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Street ${requiredAsterisk}</label>
+                                <input type="text" name="rue_${index}" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500" placeholder="Street" ${requiredAttr}>
+                            </div>
+                            <div class="w-1/3">
+                                <label class="block text-xs font-semibold text-gray-700 mb-1.5">No. ${requiredAsterisk}</label>
+                                <input type="text" name="numero_${index}" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500" placeholder="No." ${requiredAttr}>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="w-1/2">
+                                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Postcode/Zipcode ${requiredAsterisk}</label>
+                                <input type="text" name="cp_${index}" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500" placeholder="Code" ${requiredAttr}>
+                            </div>
+                            <div class="w-1/2">
+                                <label class="block text-xs font-semibold text-gray-700 mb-1.5">City ${requiredAsterisk}</label>
+                                <input type="text" name="ville_${index}" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500" placeholder="City" ${requiredAttr}>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Country ${requiredAsterisk}</label>
+                            <input type="text" name="pays_${index}" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-500" placeholder="Country" ${requiredAttr}>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return block;
+        }
+
+        function updateUI() {
+            counterDisplay.textContent = `${travelerCount}/${MAX_TRAVELERS} travelers added`;
+            if (travelerCount >= MAX_TRAVELERS) {
+                btnAdd.style.display = 'none';
+            } else {
+                btnAdd.style.display = 'flex';
+            }
+        }
+
+        function addTraveler() {
+            if (travelerCount < MAX_TRAVELERS) {
+                travelerCount++;
+                const newBlock = createTravelerBlock(travelerCount);
+                container.appendChild(newBlock);
+                updateUI();
+                
+                // Si ce n'est pas le premier, on scrolle doucement vers le nouveau
+                if(travelerCount > 1) {
+                    setTimeout(() => {
+                        newBlock.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
+                }
+            }
+        }
+
+        window.removeTraveler = function(index) {
+            const block = document.querySelector(`.traveler-block[data-index="${index}"]`);
+            if (block) {
+                block.remove();
+                travelerCount--;
+                
+                const blocks = document.querySelectorAll('.traveler-block');
+                travelerCount = 0; 
+                blocks.forEach((b) => {
+                    travelerCount++;
+                    b.dataset.index = travelerCount;
+                    
+                    const h3 = b.querySelector('h3');
+                    if (travelerCount === 1) {
+                        h3.innerHTML = `<span class="bg-blue-100 text-blue-800 w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm">${travelerCount}</span> Traveler`; 
+                    } else {
+                        h3.innerHTML = `
+                            <span class="bg-blue-100 text-blue-800 w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm">${travelerCount}</span> Traveler 
+                            <button type="button" onclick="removeTraveler(${travelerCount})" class="absolute top-3 right-3 text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2 rounded-full w-10 h-10 flex items-center justify-center transition-colors">
+                                <i class="fa-solid fa-xmark text-lg"></i>
+                            </button>`;
+                    }
+
+                    const inputs = b.querySelectorAll('input, select');
+                    inputs.forEach(input => {
+                        const nameParts = input.name.split('_');
+                        if (nameParts.length === 2) {
+                            input.name = `${nameParts[0]}_${travelerCount}`;
+                        }
+                    });
+                });
+                updateUI();
+            }
+        }
+
+        addTraveler();
+        btnAdd.addEventListener('click', addTraveler);
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault(); 
+
+            // Visuel : bouton en chargement
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xl"></i> Processing...';
+            submitBtn.disabled = true;
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                let yPos = 20;
+                const pageHeight = doc.internal.pageSize.height;
+                const leftMargin = 20;
+
+                doc.setFontSize(18);
+                doc.setFont("helvetica", "bold");
+                doc.text("Traveler Registration", leftMargin, yPos);
+                yPos += 15;
+
+                const blocks = document.querySelectorAll('.traveler-block');
+                
+                blocks.forEach((block, idx) => {
+                    const i = idx + 1;
+                    const prenom = block.querySelector(`input[name="prenom_${i}"]`).value;
+                    const nom = block.querySelector(`input[name="nom_${i}"]`).value;
+                    const dob = block.querySelector(`input[name="dob_${i}"]`).value;
+                    const idType = block.querySelector(`select[name="idType_${i}"]`).value;
+                    const idDoc = block.querySelector(`input[name="id_${i}"]`).value;
+                    const nat = block.querySelector(`input[name="nationalite_${i}"]`).value;
+                    const tel = block.querySelector(`input[name="tel_${i}"]`).value;
+                    const lien = block.querySelector(`input[name="lien_${i}"]`).value || "Not specified";
+                    
+                    const rue = block.querySelector(`input[name="rue_${i}"]`).value;
+                    const num = block.querySelector(`input[name="numero_${i}"]`).value;
+                    const cp = block.querySelector(`input[name="cp_${i}"]`).value;
+                    const ville = block.querySelector(`input[name="ville_${i}"]`).value;
+                    const pays = block.querySelector(`input[name="pays_${i}"]`).value;
+
+                    if(prenom || nom) {
+                        if (yPos > pageHeight - 40) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+
+                        doc.setFontSize(14);
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(30, 64, 175); 
+                        doc.text(`--- TRAVELER ${i} ---`, leftMargin, yPos);
+                        yPos += 8;
+
+                        doc.setFontSize(11);
+                        doc.setFont("helvetica", "normal");
+                        doc.setTextColor(0, 0, 0); 
+                        
+                        const details = [
+                            `Full Name: ${prenom} ${nom}`,
+                            `Date of Birth: ${dob}`,
+                            `Document (${idType}): ${idDoc}`,
+                            `Nationality: ${nat}`,
+                            `Phone: ${tel}`,
+                            `Relationship: ${lien}`,
+                            `Address: ${rue} ${num}, ${cp} ${ville}, ${pays}`
+                        ];
+
+                        details.forEach(detail => {
+                            doc.text(detail, leftMargin, yPos);
+                            yPos += 6;
+                        });
+                        yPos += 8; 
+                    }
+                });
+
+                // Génération du fichier PDF en mémoire (Blob)
+                const pdfBlob = doc.output('blob');
+                const pdfFile = new File([pdfBlob], 'travelers_registration.pdf', { type: 'application/pdf' });
+
+                // Vérification si le navigateur supporte le partage de fichier natif (ex: Safari iOS, Chrome Android)
+                if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                    await navigator.share({
+                        files: [pdfFile],
+                        title: 'Traveler Registration',
+                        text: 'Here is the traveler registration form for the apartment.'
+                    });
+                } else {
+                    // Fallback (sur ordinateur) : on télécharge simplement le fichier
+                    doc.save('travelers_registration.pdf');
+                    alert("Direct sharing is not supported on this browser. The PDF has been downloaded to your device so you can share it manually.");
+                }
+            } catch (error) {
+                console.error("Erreur lors de la génération/partage :", error);
+                // Si l'utilisateur annule le partage, on ne fait rien de spécial
+            } finally {
+                // Rétablir le bouton
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
